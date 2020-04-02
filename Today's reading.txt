@@ -8,5 +8,9 @@ https://towardsdatascience.com/image-augmentation-for-deep-learning-using-keras-
 
 3. Set check-points in keras
 https://machinelearningmastery.com/check-point-deep-learning-models-keras/
+
 4. Histogram Equalization
 http://homepages.inf.ed.ac.uk/rbf/HIPR2/stretch.htm?fireglass_rsn=true
+
+5. GPU Image Processing using OpenCL
+https://towardsdatascience.com/get-started-with-gpu-image-processing-15e34b787480
