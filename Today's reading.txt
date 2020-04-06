@@ -1,0 +1,16 @@
+1.
+Keras: .fit vs .fit_generator
+
+https://www.pyimagesearch.com/2018/12/24/how-to-use-keras-fit-and-fit_generator-a-hands-on-tutorial/
+
+2. Image Augmentation
+https://towardsdatascience.com/image-augmentation-for-deep-learning-using-keras-and-histogram-equalization-9329f6ae5085
+
+3. Set check-points in keras
+https://machinelearningmastery.com/check-point-deep-learning-models-keras/
+
+4. Histogram Equalization
+http://homepages.inf.ed.ac.uk/rbf/HIPR2/stretch.htm?fireglass_rsn=true
+
+5. GPU Image Processing using OpenCL
+https://towardsdatascience.com/get-started-with-gpu-image-processing-15e34b787480
