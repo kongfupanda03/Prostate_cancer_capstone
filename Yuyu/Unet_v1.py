@@ -15,6 +15,7 @@ from tensorflow.keras.layers import *
 from tensorflow.keras.models import *
 from tensorflow.keras.optimizers import *
 from tensorflow.keras.metrics import *
+from tensorflow.keras.callbacks import *
 from tensorflow.python.keras.callbacks import TensorBoard, ModelCheckpoint, EarlyStopping, ReduceLROnPlateau
 import albumentations as A
 import time
@@ -248,7 +249,7 @@ def dice_coef(y_true, y_pred,smooth=1):
     y_true_f = K.flatten(y_true)
     y_pred_f = K.flatten(y_pred)
     intersection = K.sum(y_true_f * y_pred_f)
-    return (2. * intersection + smooth) / (K.sum(y_true_f*y_true_f) + K.sum(y_pred_f*y_pred_f) + smooth)
+    return (2. * intersection + smooth) / (K.sum(y_true_f) + K.sum(y_pred_f) + smooth)
 
 
 #Unet Model
@@ -338,7 +339,7 @@ valid_dataloader = Dataloader(valid_dataset, batch_size=1, shuffle=False)
 
 model_checkpoint = ModelCheckpoint('unet_v1_checkpoint.hdf5', monitor='loss',verbose=1, save_best_only=True)
 callback = EarlyStopping(monitor='loss',patience=3,verbose=1)
-
+csv_logger = CSVLogger('training.log', separator=',', append=False)
 #Train
 #Train Model
 start_time = time.time()
@@ -347,11 +348,52 @@ unet1 = model.fit(
     steps_per_epoch=len(train_dataloader), 
     epochs=EPOCHS, 
     validation_data=valid_dataloader, 
-    callbacks=[model_checkpoint,callback], 
+    callbacks=[model_checkpoint,callback,csv_logger], 
     validation_steps=len(valid_dataloader),verbose=1)
 
 end_time = time.time()
 print(f"training duration: {end_time - start_time}")
 model.save("UNet_v1.h5", overwrite=True) 
 
+#save a json file for debugging
+model_json = model.to_json()
+with open("model_small.json", "w") as json_file:
+    json_file.write(model_json)
+
+# Plot learning curves
+#Loss
+plt.plot(unet1.history['loss'])
+plt.plot(unet1.history['val_loss'])
+plt.title('model loss')
+plt.ylabel('loss')
+plt.xlabel('epoch')
+plt.legend(['train', 'test'], loc='upper left')
+plt.savefig('loss.png')
+
+#Acc
+plt.plot(unet1.history['accuracy'])
+plt.plot(unet1.history['val_accuracy'])
+plt.title('model accuracy')
+plt.ylabel('accuracy')
+plt.xlabel('epoch')
+plt.legend(['train', 'test'], loc='upper left')
+plt.savefig('acc.png')
+
+#IOU
+plt.plot(unet1.history['mean_io_u'])
+plt.plot(unet1.history['val_mean_io_u'])
+plt.title('model mean IOU')
+plt.ylabel('IOU')
+plt.xlabel('epoch')
+plt.legend(['train', 'test'], loc='upper left')
+plt.savefig('iou.png')
+
+#dice
+plt.plot(unet1.history['dice_coef'])
+plt.plot(unet1.history['val_dice_coef'])
+plt.title('model dice_coefficient')
+plt.ylabel('dice')
+plt.xlabel('epoch')
+plt.legend(['train', 'test'], loc='upper left')
+plt.savefig('dice.png')
 
