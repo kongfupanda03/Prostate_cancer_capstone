@@ -20,6 +20,33 @@ from tensorflow.python.keras.callbacks import TensorBoard, ModelCheckpoint, Earl
 import albumentations as A
 import time
 
+### get label weights
+label_cnts=[]
+for i in os.listdir(y_train_dir):
+  path=os.path.join(y_train_dir,i)
+  print(path)
+  mask = cv2.imread(path,0)
+  cnt = np.unique(mask)
+  label_cnts.extend(cnt)
+
+label_dict = dict(Counter(label_cnts))
+
+##function to generate weights
+def create_class_weight(labels_dict,mu=0.15):
+    total = sum(labels_dict.values())
+    keys = labels_dict.keys()
+    class_weight = dict()
+
+    for key in keys:
+      print(key)
+      score = np.log(mu*total/labels_dict[key])
+      print(score)
+      class_weight[key] = np.ceil(score) if score > 1.0 else 1.0
+
+    return class_weight
+
+class_weights = create_class_weight(labels_dict = label_dict,mu=0.15)
+
 #Set Path
 DATA_DIR = './'
 x_train_dir = os.path.join(DATA_DIR, 'train_frames/train')
@@ -349,7 +376,8 @@ unet1 = model.fit(
     epochs=EPOCHS, 
     validation_data=valid_dataloader, 
     callbacks=[model_checkpoint,callback,csv_logger], 
-    validation_steps=len(valid_dataloader),verbose=1)
+    validation_steps=len(valid_dataloader),verbose=1,
+    class_weight=class_weights) # yy-add in weights
 
 end_time = time.time()
 print(f"training duration: {end_time - start_time}")
