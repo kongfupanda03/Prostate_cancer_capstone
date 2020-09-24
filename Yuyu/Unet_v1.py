@@ -20,7 +20,16 @@ from tensorflow.python.keras.callbacks import TensorBoard, ModelCheckpoint, Earl
 import albumentations as A
 import time
 
-### get label weights
+#Set Path
+DATA_DIR = './'
+x_train_dir = os.path.join(DATA_DIR, 'train_frames/train')
+y_train_dir = os.path.join(DATA_DIR, 'train_masks/train')
+
+x_valid_dir = os.path.join(DATA_DIR, 'val_frames/val')
+y_valid_dir = os.path.join(DATA_DIR, 'val_masks/val')
+
+
+### get label weights -- YY
 label_cnts=[]
 for i in os.listdir(y_train_dir):
   path=os.path.join(y_train_dir,i)
@@ -32,6 +41,7 @@ for i in os.listdir(y_train_dir):
 label_dict = dict(Counter(label_cnts))
 
 ##function to generate weights
+#Adjust mu to adjust weightage
 def create_class_weight(labels_dict,mu=0.15):
     total = sum(labels_dict.values())
     keys = labels_dict.keys()
@@ -46,14 +56,8 @@ def create_class_weight(labels_dict,mu=0.15):
     return class_weight
 
 class_weights = create_class_weight(labels_dict = label_dict,mu=0.15)
+weights = [class_weights[key] for key in sorted(class_weights)]
 
-#Set Path
-DATA_DIR = './'
-x_train_dir = os.path.join(DATA_DIR, 'train_frames/train')
-y_train_dir = os.path.join(DATA_DIR, 'train_masks/train')
-
-x_valid_dir = os.path.join(DATA_DIR, 'val_frames/val')
-y_valid_dir = os.path.join(DATA_DIR, 'val_masks/val')
 
 #Preprocessing
 # classes for data loading and preprocessing
@@ -279,9 +283,18 @@ def dice_coef(y_true, y_pred,smooth=1):
     return (2. * intersection + smooth) / (K.sum(y_true_f) + K.sum(y_pred_f) + smooth)
 
 
+## Define weighted cross-entropy --YY
+def weighted_categorical_crossentropy(weights):
+    
+    def wcce(y_true, y_pred):
+        Kweights = K.constant(weights)
+        y_true = K.cast(y_true, y_pred.dtype)
+        return K.categorical_crossentropy(y_true, y_pred) * K.sum(y_true * Kweights, axis=-1)
+    return wcce
+
 #Unet Model
 #layers
-def unet(pretrained_weights = None,input_size = (256,256,1)):
+def unet(pretrained_weights = None,input_size = (256,256,1),weights=None):
     inputs = Input(input_size)
     conv1 = Conv2D(64, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(inputs)
     conv1 = Conv2D(64, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv1)
@@ -324,9 +337,10 @@ def unet(pretrained_weights = None,input_size = (256,256,1)):
     conv10 = Conv2D(6, 1, activation = 'softmax')(conv9)
 
     model = Model(inputs, conv10)
+    ## apply wcce --YY
+    loss = weighted_categorical_crossentropy(weights)
+    model.compile(optimizer = Adam(lr = 1e-4), loss = loss, metrics = [dice_coef,'accuracy',MeanIoU(num_classes=6)])
 
-    model.compile(optimizer = Adam(lr = 1e-4), loss = 'categorical_crossentropy', metrics = [dice_coef,'accuracy',MeanIoU(num_classes=6)])
-    #
     model.summary()
 
     if(pretrained_weights):
@@ -334,7 +348,7 @@ def unet(pretrained_weights = None,input_size = (256,256,1)):
 
     return model
 
-model = unet(input_size=(512,512,3))
+model = unet(input_size=(512,512,3),weights=weights) #apply weights
 
 BATCH_SIZE = 2
 CLASSES = ['0', '1','2','3','4','5']
